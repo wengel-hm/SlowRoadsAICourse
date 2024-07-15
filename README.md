@@ -1,11 +1,13 @@
 # SlowRoadsAICourse
-Master autonomous driving in the SlowRoads game using Python &amp; Selenium. Start with OpenCV for lane detection, then advance to deep learning with YOLO for traffic sign detection and lane segmentation
-
-Here's a streamlined Markdown guide for setting up a Python virtual environment using the built-in `venv` module, suitable for your GitHub project documentation:
+Master autonomous driving in the [SlowRoads](https://slowroads.io/) game using Python & Selenium. Start with OpenCV for lane detection, then advance to deep learning with YOLO for traffic sign detection and lane segmentation.
 
 ## Prerequisites
 
 Before starting work on the project, ensure you have the following tools installed and accounts set up. This checklist will guide you through each step:
+
+- [ ] **Install Python**
+  - **Description**: Python is a programming language that is widely used for various types of projects, including web development, data analysis, and automation.
+  - **Installation**: Download and install Python from [Python's official site](https://www.python.org/downloads/). Make sure to check the box that says "Add Python to PATH" during the installation process.
 
 - [ ] **Install Git**
   - **Description**: Git is a version control system that lets you manage and keep track of your source code history.
