@@ -1,34 +1,56 @@
 import numpy as np
 import cv2 as cv
 
-def preprocess_image(image, threshold=175, size=(640, 360)):
-    """
-    Preprocess the input image to create a binary mask and a resized grayscale image.
 
-    Parameters:
-    - image: Original image in BGR format.
-    - threshold: Pixel intensity threshold for binary mask creation.
-    - size: Target size for resizing the image (width, height).
+def remove_small_components(image, min_size=30):
+    num_labels, labels_im = cv.connectedComponents(image)
+
+    # Create an output image the same size as the original, initialized to zero (black)
+    output = np.zeros_like(image)
+
+    for label in range(1, num_labels):
+        # Create a mask where the components are equal to the current label
+        component = labels_im == label
+        if np.sum(component) > min_size:  # If the component is larger than min_size
+            output[component] = 255
+
+    return output
+
+def preprocess_image(image, lower_white=None, upper_white=None, size=(640, 360)):
+    """
+    Preprocess an image to extract a mask of the road based on specified white color ranges.
+    Allows resizing the image to a specified size for consistent processing.
+
+    Args:
+    image (np.array): The input image in BGR color space.
+    lower_white (np.array): Lower bound for the white color range, default if None.
+    upper_white (np.array): Upper bound for the white color range, default if None.
+    size (tuple): The target size for resizing the image, format (width, height).
 
     Returns:
-    - binary_mask: Binary mask where pixels above the threshold are set to 1.
-    - resized_image: Resized version of the original image.
+    np.array: A binary mask where white areas within the specified range are marked.
     """
 
-    # Resize the image to the specified size
-    resized_image = cv.resize(image, size)
+    # Set default color ranges using the 'or' operator for concise default assignment
+    lower_white = lower_white or np.array([0, 0, 170], dtype=np.uint8)
+    upper_white = upper_white or np.array([255, 30, 255], dtype=np.uint8)
 
-    # Convert the resized image to grayscale
-    image_gray = cv.cvtColor(resized_image, cv.COLOR_BGR2GRAY)
+    # Resize the image to the specified size for uniform processing
+    resized_image = cv.resize(image, size, interpolation=cv.INTER_LINEAR)
 
-    # Initialize a binary mask with the same shape as the grayscale image
-    binary_mask = np.zeros_like(image_gray)
+    # Convert the image from BGR to HSV color space
+    hsv_image = cv.cvtColor(resized_image, cv.COLOR_BGR2HSV)
 
-    # Set mask pixels to 1 where the grayscale pixel value is above the threshold
-    binary_mask[image_gray > threshold] = 1
+    # Create a mask to isolate the white regions in the image
+    mask = cv.inRange(hsv_image, lower_white, upper_white)
 
-    return binary_mask, resized_image
+    # Remove noise using morphological operations
+    mask = remove_small_components(mask)
 
+    # Normalize the mask to binary values (0 or 1) by integer division
+    mask = mask // 255
+
+    return mask, resized_image
 
 def plot_results(image, mask, ymin, ymax, cx, l_index, r_index = None):
     """
@@ -64,6 +86,7 @@ def find_line_center(stripe, min_pixels):
     success = True
     mean_x = None
     index = None
+    total_pixels = None
 
     # Sum the stripe along the vertical axis
     summed = np.sum(stripe, axis=0)
@@ -71,9 +94,11 @@ def find_line_center(stripe, min_pixels):
     # Cumulative sum to determine the path width
     cumsum = np.cumsum(summed)
 
-    if np.max(cumsum) < min_pixels:
+    total_pixels = np.max(cumsum)
+
+    if total_pixels < min_pixels:
       success = False
-      return success, mean_x, index
+      return success, mean_x, index, total_pixels
 
     # Find the index where the cumulative sum exceeds min_pixels
     index = np.argmax(cumsum > min_pixels)
@@ -87,9 +112,9 @@ def find_line_center(stripe, min_pixels):
     if np.isnan(mean_x):
       success = False
 
-    return success, mean_x, index
+    return success, mean_x, index, total_pixels
     
-def find_driving_path(image, mask, ymin=270, ymax=285, min_pixels=55, lane_width = 309):
+def find_driving_path(image, mask, ymin=260, ymax=275, min_pixels=55, lane_width = 309):
     """
     Finds the driving path within the image based on the mask.
 
@@ -111,7 +136,7 @@ def find_driving_path(image, mask, ymin=270, ymax=285, min_pixels=55, lane_width
     # r_stripe = mask[ymin:ymax, cx:]        # Right stripe
 
     # Find the center of the left and right lines
-    success_left, xleft, index_left = find_line_center(l_stripe, min_pixels)
+    success_left, xleft, index_left, total_pixels = find_line_center(l_stripe, min_pixels)
     # success_right, xright, index_right = find_line_center(r_stripe, min_pixels)
 
     if success_left:
@@ -129,8 +154,8 @@ def find_driving_path(image, mask, ymin=270, ymax=285, min_pixels=55, lane_width
       # Generate the result image with the overlay
       result = plot_results(image, mask, ymin, ymax, cx, index_left)
 
-      return success_left, result, offset
+      return success_left, result, offset, total_pixels
     
     else:
 
-      return success_left, None, None
+      return success_left, None, None, None

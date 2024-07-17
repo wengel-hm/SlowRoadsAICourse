@@ -11,16 +11,37 @@ class SlowRoadsSimulator(BaseSlowRoadsSimulator):
     def __init__(self):
         super().__init__()  # Initialize the base class   
 
+    def publish_control_commands(self, offset, threshold = 20, kp = 5e-3, tmax = 0.3):
+
+        if abs(offset) < threshold:
+            return
+        
+        t = min(abs(offset) * kp, tmax)
+
+        if offset > 0:
+            self.steer_right(t, 0.05)
+            print(f"{offset=}, {t=}, steer_right")
+        elif offset < 0:
+            self.steer_left(t, 0.05)
+            print(f"{offset=}, {t=}, steer_left")
+
+
     def run(self):
+        self.autodrive_off()
 
         """Main loop to capture images and update commands."""
         try:
             while not self.exit_event.is_set():
                 image = self.grab_screenshot()
                 mask, resized_image = preprocess_image(image)
-                success, result, offset = find_driving_path(resized_image, mask)
+                success, result, offset, total_pixels = find_driving_path(resized_image, mask)
+                stats_dict = {'offset': offset, 'total_pixels': total_pixels}
                 if success:
-                    self.update_plot(result)
+                    self.update_plot(result, stats_dict)
+                    self.publish_control_commands(offset)
+                else:
+                    pass
+
         finally:
             self.__clear__()
 
