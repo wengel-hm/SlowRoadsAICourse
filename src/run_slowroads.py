@@ -1,7 +1,7 @@
 import os
 import time
 from slowroads_sim import SlowRoadsSimulator as BaseSlowRoadsSimulator
-from lane_detection_utils import preprocess_image, find_driving_path, send_control_commands
+from lane_detection_utils import preprocess_image
 import matplotlib.pyplot as plt
 import numpy as np
 from slowroads_utils import steer_left, steer_right
@@ -10,6 +10,15 @@ import cv2 as cv
 class SlowRoadsSimulator(BaseSlowRoadsSimulator):
     def __init__(self):
         super().__init__()  # Initialize the base class   
+
+    def run(self):
+
+        """Main loop to capture images and update commands."""
+        try:
+            while not self.exit_event.is_set():
+                image = self.grab_screenshot()
+        finally:
+            self.__clear__()
 
 
 if __name__ == "__main__":
@@ -41,6 +50,8 @@ if __name__ == "__main__":
     # for _ in range(5):
     #     sim.steer_left(0.5, 0.5)
     #     sim.steer_right(0.5, 0.5)
+
+    # sim.rest_vehicle()
 
 
 
