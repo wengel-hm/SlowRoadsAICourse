@@ -1,7 +1,7 @@
 import os
 import time
 from slowroads_sim import SlowRoadsSimulator as BaseSlowRoadsSimulator
-from lane_detection_utils import preprocess_image
+from lane_detection_utils import preprocess_image, find_driving_path
 import matplotlib.pyplot as plt
 import numpy as np
 from slowroads_utils import steer_left, steer_right
@@ -17,6 +17,10 @@ class SlowRoadsSimulator(BaseSlowRoadsSimulator):
         try:
             while not self.exit_event.is_set():
                 image = self.grab_screenshot()
+                mask, resized_image = preprocess_image(image)
+                success, result, offset = find_driving_path(resized_image, mask)
+                if success:
+                    self.update_plot(result)
         finally:
             self.__clear__()
 
@@ -31,10 +35,11 @@ if __name__ == "__main__":
 
 
     sim = SlowRoadsSimulator()
-    sim.open_brwoser(size = window_size)
 
     # Load local storage
-    # sim.open_brwoser(local_storage_file, window_size)
+    sim.open_brwoser(local_storage_file, window_size)
+
+    sim.run()
 
     # sim.set_speed(10)
     # time.sleep(5)
