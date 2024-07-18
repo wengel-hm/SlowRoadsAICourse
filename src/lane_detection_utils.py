@@ -2,7 +2,7 @@ import numpy as np
 import cv2 as cv
 
 
-def remove_small_components(image, min_size=30):
+def remove_small_components(image, min_size=90):
     num_labels, labels_im = cv.connectedComponents(image)
 
     # Create an output image the same size as the original, initialized to zero (black)
@@ -71,7 +71,7 @@ def plot_results(image, mask, ymin, ymax, cx, l_index, r_index = None):
     mask_rgb = cv.cvtColor(mask, cv.COLOR_GRAY2RGB) * 255
     
     # Apply mask to the specified stripe area
-    result[ymin:ymax, :, :] = mask_rgb[ymin:ymax, :, :]
+    result[ymin:ymax, :cx, :] = mask_rgb[ymin:ymax, :cx, :]
 
     # Add red stripe indicating the path
     result[ymin:ymax, cx - l_index:cx, 1:] = 0
@@ -82,11 +82,41 @@ def plot_results(image, mask, ymin, ymax, cx, l_index, r_index = None):
 
     return result
 
-def find_line_center(stripe, min_pixels):
-    success = True
-    mean_x = None
-    index = None
-    total_pixels = None
+
+    
+def find_driving_path(image, mask, ymin=250, ymax=265, min_pixels=55, lane_width = 370, prev_center = None, stats = {}):
+    """
+    Finds the driving path within the image based on the mask.
+
+    Parameters:
+    - image: The original image from which the mask was derived.
+    - mask: Binary mask of the road.
+    - ymin: Minimum y-coordinate for the stripe.
+    - ymax: Maximum y-coordinate for the stripe.
+    - min_pixels: Minimum number of pixels required to classify a line as a lane line.
+    - lane_width: Expected width of the lane.
+    - prev_center: Previous center of the lane, used to split the mask into left and right halves.
+    - stats: Dictionary to store additional statistics.
+
+    Returns:
+    - success: Boolean indicating if a valid driving path was found.
+    - offset: Offset of the lane center from the image center.
+    - overlay: Image with the overlay indicating the driving path.
+    - stats: Dictionary containing statistics such as lane center and offset.
+    """
+
+    offset = None
+    lane_center = None
+    overlay = None
+
+    
+    height, width = mask.shape
+    cx = width // 2  # Center x-coordinate
+
+    prev_center = prev_center or cx
+
+    # Crop the stripe between ymin and ymax and split it into left and right halves
+    stripe = mask[ymin:ymax, :prev_center][::-1]  # Left stripe, flipped vertically
 
     # Sum the stripe along the vertical axis
     summed = np.sum(stripe, axis=0)
@@ -94,68 +124,33 @@ def find_line_center(stripe, min_pixels):
     # Cumulative sum to determine the path width
     cumsum = np.cumsum(summed)
 
+    # # Total number of white pixels in the stripe
     total_pixels = np.max(cumsum)
 
-    if total_pixels < min_pixels:
-      success = False
-      return success, mean_x, index, total_pixels
+    # Check if the total pixels exceed the minimum threshold
+    success = total_pixels > min_pixels
 
-    # Find the index where the cumulative sum exceeds min_pixels
-    index = np.argmax(cumsum > min_pixels)
+    if success:
+       
+        # Find the index where the cumulative sum exceeds min_pixels
+        index = np.argmax(cumsum > min_pixels)
 
-    # Get the non-zero coordinates within the stripe up to the index
-    y, x = np.nonzero(stripe[:, :index])
+        # Get the non-zero coordinates within the stripe up to the index
+        y, x = np.nonzero(stripe[:, :index])
 
-    # Compute the mean x-coordinate of the non-zero pixels
-    mean_x = np.mean(x)
+        # Compute the mean x-coordinate of the non-zero pixels
+        mean_x = prev_center - np.mean(x, dtype = int)
 
-    if np.isnan(mean_x):
-      success = False
+        # Calculate lane center
+        lane_center = mean_x + lane_width//2
 
-    return success, mean_x, index, total_pixels
+        # Caluclate Offset
+        offset = int(cx - lane_center)
     
-def find_driving_path(image, mask, ymin=260, ymax=275, min_pixels=55, lane_width = 309):
-    """
-    Finds the driving path within the image based on the mask.
-
-    Parameters:
-    - image: Original image.
-    - mask: Binary mask of the road.
-    - ymin: Minimum y-coordinate for the stripe.
-    - ymax: Maximum y-coordinate for the stripe.
-    - min_pixels: Minimum number of pixels to consider for the driving path.
-
-    Returns:
-    - result: Image with the overlay indicating the driving path.
-    """
-    height, width = mask.shape
-    cx = width // 2  # Center x-coordinate
-
-    # Crop the stripe between ymin and ymax and split it into left and right halves
-    l_stripe = mask[ymin:ymax, :cx][::-1]  # Left stripe, flipped vertically
-    # r_stripe = mask[ymin:ymax, cx:]        # Right stripe
-
-    # Find the center of the left and right lines
-    success_left, xleft, index_left, total_pixels = find_line_center(l_stripe, min_pixels)
-    # success_right, xright, index_right = find_line_center(r_stripe, min_pixels)
-
-    if success_left:
-
-      # Transform the left and right line centers to image coordinates
-      xleft = cx - xleft
-      # xright = cx + xright
-
-      # Calculate lane center
-      lane_center = xleft + lane_width//2
-
-      # Caluclate Offset
-      offset = int(cx - lane_center)
-
-      # Generate the result image with the overlay
-      result = plot_results(image, mask, ymin, ymax, cx, index_left)
-
-      return success_left, result, offset, total_pixels
+        overlay = plot_results(image, mask, ymin, ymax, prev_center, index+20)
     
-    else:
+    stats['lane_center'] = lane_center
+    stats['offset'] = offset
 
-      return success_left, None, None, None
+    
+    return success, offset, overlay, stats

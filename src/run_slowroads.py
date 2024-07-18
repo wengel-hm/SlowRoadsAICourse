@@ -11,36 +11,49 @@ class SlowRoadsSimulator(BaseSlowRoadsSimulator):
     def __init__(self):
         super().__init__()  # Initialize the base class   
 
-    def publish_control_commands(self, offset, threshold = 20, kp = 5e-3, tmax = 0.3):
-
+    def publish_control_commands(self, offset, threshold = 20, kp = 4e-3, tmax = 0.3):
+        
+        # If the offset is within the threshold, no steering adjustment is needed
         if abs(offset) < threshold:
             return
         
-        t = min(abs(offset) * kp, tmax)
+        t_down = min(abs(offset) * kp, tmax)
+        t_up = 0.05
 
         if offset > 0:
-            self.steer_right(t, 0.05)
-            print(f"{offset=}, {t=}, steer_right")
+            self.steer_right(t_down, t_up) # Steer right if offset is positive
         elif offset < 0:
-            self.steer_left(t, 0.05)
-            print(f"{offset=}, {t=}, steer_left")
+            self.steer_left(t_down, t_up) # Steer left if offset is negative
 
 
     def run(self):
-        self.autodrive_off()
+        self.autodrive_off()  # Turn off autodrive
 
-        """Main loop to capture images and update commands."""
+        # Set up a success list to keep track of successful path findings.
+        # If there are N consecutive failures, turn autodrive back on.
+        N = 3
+        success_list = [True] * N
+
         try:
             while not self.exit_event.is_set():
-                image = self.grab_screenshot()
+                success, image = self.grab_screenshot()
+
+                if not success:  # If screenshot is not successful, skip to the next iteration
+                    continue
+
                 mask, resized_image = preprocess_image(image)
-                success, result, offset, total_pixels = find_driving_path(resized_image, mask)
-                stats_dict = {'offset': offset, 'total_pixels': total_pixels}
+                success, offset, overlay, stats = find_driving_path(resized_image, mask, min_pixels = 60)
+                success_list.append(success)
+
+                # Extract relevant statistics for plotting
+                stats_dict = {k: stats[k] for k in ['offset', 'lane_center']}
+
                 if success:
-                    self.update_plot(result, stats_dict)
+                    self.update_plot(overlay, stats_dict)
                     self.publish_control_commands(offset)
-                else:
-                    pass
+                elif not True in success_list[-N:]: # If there are N consecutive failures
+                    self.rest_vehicle() # Rest the vehicle as a fallback mechanism
+
 
         finally:
             self.__clear__()

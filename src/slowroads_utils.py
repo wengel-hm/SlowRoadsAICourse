@@ -146,14 +146,14 @@ def grab_screenshot(driver):
         screenshot = driver.get_screenshot_as_png()
         nparr = np.frombuffer(screenshot, np.uint8)
         image = cv.imdecode(nparr, cv.IMREAD_COLOR)
+        return True, image
     except WebDriverException as e:
         print(f"WebDriverException occurred in control thread: {e}")
-        # Handle WebDriver-related errors
+        # Return None or a default image to handle the exception gracefully
     except Exception as e:
         print(f"An unexpected error occurred in control thread: {e}")
-        # Handle other unexpected exceptions
-
-    return image
+        # Return None or a default image to handle the exception gracefully
+    return False, None
 
 @track_time     
 def steer_left(driver, t_down = 0.2, t_up = 0.1):
