@@ -1,4 +1,4 @@
-from slowroads_utils import open_browser, grab_screenshot, set_cruise_speed, autodrive_on, autodrive_off, save_screenshot, KeyListener
+from slowroads_utils import update_config_file, open_browser, grab_screenshot, set_cruise_speed, autodrive_on, autodrive_off, save_screenshot, KeyListener
 import matplotlib.pyplot as plt
 from slowroads_utils import steer_left, steer_right
 import time
@@ -147,8 +147,8 @@ class SlowRoadsSimulator:
     def grab_screenshot(self):
         return grab_screenshot(self.driver)
 
-    def save_screenshot(self, directory = None):
-        save_screenshot(self.driver, directory)
+    def save_screenshot(self, directory = None, prefix = None):
+        save_screenshot(self.driver, directory, prefix)
 
     def autodrive_on(self):
         autodrive_on(self.driver)
@@ -169,6 +169,9 @@ class SlowRoadsSimulator:
             self.key_listener_initialized = True
 
         self.key_listener.add_key_action(key, func)
+
+    def setup_scene(self, file_path, topography="normal", season="summer", weather="sun"):
+        update_config_file(file_path, topography, season, weather)
 
     def run(self):
 

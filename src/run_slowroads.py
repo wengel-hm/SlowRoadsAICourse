@@ -36,6 +36,8 @@ class SlowRoadsSimulator(BaseSlowRoadsSimulator):
 
         try:
             while not self.exit_event.is_set():
+                time.sleep(1)
+                continue
                 success, image = self.grab_screenshot()
 
                 if not success:  # If screenshot is not successful, skip to the next iteration
@@ -63,12 +65,22 @@ if __name__ == "__main__":
 
     src_dir = os.path.dirname(os.path.abspath(__file__))
     project_dir = os.path.dirname(src_dir)
+    data_dir = os.path.join(project_dir, 'data')
 
     local_storage_file = os.path.join(project_dir, 'config', 'slowroads_storage.json')
     window_size = (480, 480)
 
 
     sim = SlowRoadsSimulator()
+
+    season_list = ["summer", "autumn", "spring", "winter"]
+    weather_list = ["sunrise", "sun", "cloudy", "sunset", "night"]
+
+    season = "summer"
+    weather = "sunrise"
+
+    prefix = f"{season}_{weather}"
+    sim.add_key_action('g', lambda: sim.save_screenshot(data_dir, prefix))
 
     # Load local storage
     sim.open_brwoser(local_storage_file, window_size)
@@ -93,6 +105,7 @@ if __name__ == "__main__":
     # sim.rest_vehicle()
 
 
+    #sim.setup_scene(local_storage_file, season="spring", topography="straight", weather="night")
 
 
 

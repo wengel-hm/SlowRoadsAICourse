@@ -12,6 +12,7 @@ import os
 from selenium.common.exceptions import NoSuchElementException, WebDriverException
 from PIL import Image
 import io
+import json
 
 # Free Keys
 # G,J,L,N,O,X,Y
@@ -127,14 +128,17 @@ def open_safari():
     return driver
 
 
-def save_screenshot(driver, directory):
+def save_screenshot(driver, directory, prefix):
 
     # Check if directory is specified and is not None
     if not directory:
         raise ValueError("A directory must be specified to save the screenshot.")
     
+    if not prefix:
+        prefix = "image"
+        
     now = datetime.now()
-    filename = now.strftime("image_%Y%m%d%H%M%S.png")
+    filename = prefix + now.strftime("_%Y%m%d%H%M%S.png")
     filepath = os.path.join(directory, filename)
     
     driver.save_screenshot(filepath)
@@ -269,4 +273,50 @@ def autodrive_on(driver, autodrive_btn_id = 'autodrive-button'):
 def autodrive_off(driver, autodrive_btn_id = 'autodrive-button'):
     if is_autodrive_active(driver):
         click_element(driver, autodrive_btn_id)
-        
+
+def update_config_file(file_path, topography="normal", season="summer", weather="sun"):
+    # Mappings
+    topography_list = ["straight", "casual", "easy", "normal", "hard"]
+    
+    season_mapping = {
+        "summer": "default", 
+        "autumn": "autumn", 
+        "spring": "spring", 
+        "winter": "winter"
+    }
+    
+    weather_mapping = {
+        "sunrise": "0", 
+        "sun": "1", 
+        "cloudy": "2", 
+        "sunset": "3", 
+        "night": "4"
+    }
+    
+    # Read the configuration file
+    with open(file_path, 'r') as file:
+        config = json.load(file)
+    
+    # Validate and update topography
+    if topography not in topography_list:
+        raise ValueError(f"Invalid topography. Select between {topography_list}")
+    else:
+        config["config-scene-topography"] = topography
+    
+    # Validate and update season
+    if season not in season_mapping:
+        raise ValueError(f"Invalid season. Select between {list(season_mapping.keys())}")
+    else:
+        config["config-scene-skin"] = season_mapping[season]
+    
+    # Validate and update weather
+    if weather not in weather_mapping:
+        raise ValueError(f"Invalid weather. Select between {list(weather_mapping.keys())}")
+    else:
+        config["config-scene-weather-index"] = weather_mapping[weather]
+    
+    # Write the updated configuration back to the file
+    with open(file_path, 'w') as file:
+        json.dump(config, file, indent=4)
+    
+    return "Configuration file has been successfully updated."
